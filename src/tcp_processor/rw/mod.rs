@@ -6,22 +6,25 @@ use std::{
 };
 
 fn read(stream: &mut TcpStream) -> Result<Vec<u8>, Box<dyn Error>> {
-    let mut temp_buf = [0; 1024]; // Временный буфер
-    let mut data = Vec::new(); // Вектор для накопления данных
+    let mut temp_buf = [0; 1024];
+    let mut data = Vec::new();
 
     loop {
-        let bytes_read = stream.read(&mut temp_buf)?; // Чтение из потока
+        let bytes_read = stream.read(&mut temp_buf)?;
         if bytes_read == 0 {
-            break; // Соединение закрыто клиентом
+            break;
         }
-        data.extend_from_slice(&temp_buf[..bytes_read]); // Добавление данных в вектор
+        data.extend_from_slice(&temp_buf[..bytes_read]);
 
-        // Пример использования маркера конца
+        // Using marker to find message end
         if data.ends_with(b"END") {
-            data.truncate(data.len() - 3); // Удаляем маркер "END"
+            data.truncate(data.len() - 3); // Deleting the marker
             break;
         }
     }
+
+    // If coonection was lost or break,
+    // we catch it ends_with using len()
     if data.len() == 0 {
         return Err(Box::new(io::Error::new(
             io::ErrorKind::Other,
@@ -33,8 +36,8 @@ fn read(stream: &mut TcpStream) -> Result<Vec<u8>, Box<dyn Error>> {
 
 fn write(stream: &mut TcpStream, bytes: Vec<u8>) -> Result<(), Box<dyn Error>> {
     let mut message = bytes;
-    message.extend_from_slice(b"END"); // Добавляем маркер конца
-    stream.write_all(&message)?; // Отправляем данные
+    message.extend_from_slice(b"END"); // Addint marker to the end
+    stream.write_all(&message)?;
     stream.flush()?;
     Ok(())
 }
@@ -50,12 +53,14 @@ pub fn send_message(stream: &mut TcpStream, message: Message) -> Result<(), Box<
     Ok(())
 }
 
+// Function needed to answer to message without any data
 pub fn send_ok(stream: &mut TcpStream, ok_title: Title) -> Result<(), Box<dyn Error>> {
     let ok_msg: Message = Message::new(ok_title, SubTitile::Ok, ContentType::NoContent, vec![]);
     send_message(stream, ok_msg)?;
     Ok(())
 }
 
+// Function used for wait OK message and send another data
 pub fn wait_ok(stream: &mut TcpStream, ok_title: Title) -> Result<(), Box<dyn Error>> {
     let msg = get_message(stream)?;
     if msg.title != ok_title {

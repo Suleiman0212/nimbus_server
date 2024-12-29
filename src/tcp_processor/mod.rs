@@ -13,6 +13,7 @@ mod rw;
 
 const FILE_DIR: &str = "/home/zeroone/server_data/";
 
+// Get and guide requests from client
 pub fn handle_connection(stream: &mut TcpStream) -> Result<(), Box<dyn Error>> {
     let msg: Message = rw::get_message(stream)?;
     match msg.title {
@@ -22,6 +23,11 @@ pub fn handle_connection(stream: &mut TcpStream) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+// Handling "Donwload" request
+// Steps:
+// 1. Get file name and if file exist send file_size
+// 2. Wait ok after sending file_size
+// 3. Send file binary data
 fn handle_get_request(stream: &mut TcpStream, msg: Message) -> Result<(), Box<dyn Error>> {
     let file_name = match unbox_message(msg, Title::GetRequest, ContentType::FileName)?[0].clone() {
         Content::Text(t) => t,
@@ -37,7 +43,6 @@ fn handle_get_request(stream: &mut TcpStream, msg: Message) -> Result<(), Box<dy
         Ok(_) => (),
         Err(_) => {
             send_no_exist_error(stream, Title::GetRequest)?;
-            // TODO: add return err
         }
     }
 
@@ -70,6 +75,12 @@ fn handle_get_request(stream: &mut TcpStream, msg: Message) -> Result<(), Box<dy
     Ok(())
 }
 
+// Handling "Upload" request
+// Steps:
+// 1. Get file name
+// 2. Send OK
+// 3. Get file binary data
+// 4. Send OK
 fn handle_send_request(stream: &mut TcpStream, msg: Message) -> Result<(), Box<dyn Error>> {
     let file_name = match unbox_message(msg, Title::SendRequest, ContentType::FileName)?[0].clone()
     {
@@ -104,6 +115,7 @@ fn handle_send_request(stream: &mut TcpStream, msg: Message) -> Result<(), Box<d
     Ok(())
 }
 
+// Sending error message when file isn't exists
 fn send_no_exist_error(stream: &mut TcpStream, title: Title) -> Result<(), Box<dyn Error>> {
     let error_message: Message = Message::new(
         title,
@@ -115,6 +127,9 @@ fn send_no_exist_error(stream: &mut TcpStream, title: Title) -> Result<(), Box<d
     Ok(())
 }
 
+// Unboxing message like a gift
+// It needed to catch any errors
+// Related with incorrect types
 fn unbox_message(
     message: Message,
     ok_title: Title,
