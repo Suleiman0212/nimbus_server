@@ -3,5 +3,25 @@
 version = 4
 
 [[package]]
+name = "dtp"
+version = "0.1.0"
+
+[[package]]
+name = "fs"
+version = "0.1.0"
+
+[[package]]
 name = "nimbus"
 version = "0.1.0"
+dependencies = [
+ "dtp",
+ "fs",
+ "rw",
+]
+
+[[package]]
+name = "rw"
+version = "0.1.0"
+dependencies = [
+ "dtp",
+]

@@ -7,11 +7,9 @@ use std::{
 use dtp::{Content, ContentType, Message, SubTitile, Title};
 use rw::{send_message, send_ok};
 
-mod dtp;
-mod fs;
-mod rw;
-
-const FILE_DIR: &str = "/home/zeroone/server_data/";
+// Hardcoded data
+// It will be change in future
+pub const FILE_DIR: &str = "/home/zeroone/server_data/";
 
 // Get and guide requests from client
 pub fn handle_connection(stream: &mut TcpStream) -> Result<(), Box<dyn Error>> {
@@ -19,6 +17,7 @@ pub fn handle_connection(stream: &mut TcpStream) -> Result<(), Box<dyn Error>> {
     match msg.title {
         Title::GetRequest => handle_get_request(stream, msg)?,
         Title::SendRequest => handle_send_request(stream, msg)?,
+        Title::FileListRequest => handle_fl_request(stream, msg)?,
     }
     Ok(())
 }
@@ -112,6 +111,22 @@ fn handle_send_request(stream: &mut TcpStream, msg: Message) -> Result<(), Box<d
 
     send_ok(stream, Title::SendRequest)?;
 
+    Ok(())
+}
+
+fn handle_fl_request(stream: &mut TcpStream, msg: Message) -> Result<(), Box<dyn Error>> {
+    unbox_message(msg, Title::FileListRequest, ContentType::NoContent)?;
+
+    let files = fs::files_list(FILE_DIR)?;
+    let files = Content::Binary(files.as_bytes().to_vec());
+    let message = Message::new(
+        Title::FileListRequest,
+        SubTitile::Ok,
+        ContentType::FileData,
+        vec![files],
+    );
+
+    rw::send_message(stream, message)?;
     Ok(())
 }
 

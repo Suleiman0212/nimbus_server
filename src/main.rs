@@ -2,7 +2,6 @@ use std::{
     error::Error,
     net::{SocketAddr, TcpListener},
 };
-
 mod tcp_processor;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -14,7 +13,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     for stream in listener.incoming() {
         let mut tcp_stream = stream?;
         match tcp_processor::handle_connection(&mut tcp_stream) {
-            Ok(_) => println!("Connection was handled without errors."),
+            Ok(_) => println!("Connection was handled without an error."),
             Err(e) => eprintln!("{e}"),
         };
     }
