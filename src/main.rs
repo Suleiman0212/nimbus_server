@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
 
     // Bind listener
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
+    let addr = conf.ip.parse::<SocketAddr>()?;
     let listener = TcpListener::bind(addr).expect("Can't run server:");
 
     // Handling incoming streams
