@@ -7,3 +7,6 @@ edition = "2021"
 dtp = { path = "../dtp/" }
 fs = { path = "../fs/" }
 rw = { path = "../rw/" }
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
+dirs = "5.0"

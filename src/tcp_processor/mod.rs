@@ -7,17 +7,13 @@ use std::{
 use dtp::{Content, ContentType, Message, SubTitile, Title};
 use rw::{send_message, send_ok};
 
-// Hardcoded data
-// It will be change in future
-pub const FILE_DIR: &str = "/home/zeroone/server_data/";
-
 // Get and guide requests from client
-pub fn handle_connection(stream: &mut TcpStream) -> Result<(), Box<dyn Error>> {
+pub fn handle_connection(stream: &mut TcpStream, dir: &str) -> Result<(), Box<dyn Error>> {
     let msg: Message = rw::get_message(stream)?;
     match msg.title {
-        Title::GetRequest => handle_get_request(stream, msg)?,
-        Title::SendRequest => handle_send_request(stream, msg)?,
-        Title::FileListRequest => handle_fl_request(stream, msg)?,
+        Title::GetRequest => handle_get_request(stream, msg, dir)?,
+        Title::SendRequest => handle_send_request(stream, msg, dir)?,
+        Title::FileListRequest => handle_fl_request(stream, msg, dir)?,
     }
     Ok(())
 }
@@ -27,7 +23,11 @@ pub fn handle_connection(stream: &mut TcpStream) -> Result<(), Box<dyn Error>> {
 // 1. Get file name and if file exist send file_size
 // 2. Wait ok after sending file_size
 // 3. Send file binary data
-fn handle_get_request(stream: &mut TcpStream, msg: Message) -> Result<(), Box<dyn Error>> {
+fn handle_get_request(
+    stream: &mut TcpStream,
+    msg: Message,
+    dir: &str,
+) -> Result<(), Box<dyn Error>> {
     let file_name = match unbox_message(msg, Title::GetRequest, ContentType::FileName)?[0].clone() {
         Content::Text(t) => t,
         _ => {
@@ -38,14 +38,14 @@ fn handle_get_request(stream: &mut TcpStream, msg: Message) -> Result<(), Box<dy
         }
     };
 
-    match fs::is_file_exist(FILE_DIR, &file_name) {
+    match fs::is_file_exist(dir, &file_name) {
         Ok(_) => (),
         Err(_) => {
             send_no_exist_error(stream, Title::GetRequest)?;
         }
     }
 
-    let file_size = Content::Number(fs::file_size(FILE_DIR, &file_name)?);
+    let file_size = Content::Number(fs::file_size(dir, &file_name)?);
     let answer: Message = Message::new(
         Title::GetRequest,
         SubTitile::Ok,
@@ -58,7 +58,7 @@ fn handle_get_request(stream: &mut TcpStream, msg: Message) -> Result<(), Box<dy
     rw::wait_ok(stream, Title::GetRequest)?;
 
     let mut buf: Vec<u8> = vec![];
-    let mut file = fs::load_file(FILE_DIR, &file_name)?;
+    let mut file = fs::load_file(dir, &file_name)?;
     file.read_to_end(&mut buf)?;
     let file_data = Content::Binary(buf);
 
@@ -80,7 +80,11 @@ fn handle_get_request(stream: &mut TcpStream, msg: Message) -> Result<(), Box<dy
 // 2. Send OK
 // 3. Get file binary data
 // 4. Send OK
-fn handle_send_request(stream: &mut TcpStream, msg: Message) -> Result<(), Box<dyn Error>> {
+fn handle_send_request(
+    stream: &mut TcpStream,
+    msg: Message,
+    dir: &str,
+) -> Result<(), Box<dyn Error>> {
     let file_name = match unbox_message(msg, Title::SendRequest, ContentType::FileName)?[0].clone()
     {
         Content::Text(t) => t,
@@ -106,7 +110,7 @@ fn handle_send_request(stream: &mut TcpStream, msg: Message) -> Result<(), Box<d
             }
         };
 
-    let mut file = fs::create_file(FILE_DIR, &file_name)?;
+    let mut file = fs::create_file(dir, &file_name)?;
     file.write_all(&file_data)?;
 
     send_ok(stream, Title::SendRequest)?;
@@ -114,10 +118,14 @@ fn handle_send_request(stream: &mut TcpStream, msg: Message) -> Result<(), Box<d
     Ok(())
 }
 
-fn handle_fl_request(stream: &mut TcpStream, msg: Message) -> Result<(), Box<dyn Error>> {
+fn handle_fl_request(
+    stream: &mut TcpStream,
+    msg: Message,
+    dir: &str,
+) -> Result<(), Box<dyn Error>> {
     unbox_message(msg, Title::FileListRequest, ContentType::NoContent)?;
 
-    let files = fs::files_list(FILE_DIR)?;
+    let files = fs::files_list(dir)?;
     let files = Content::Binary(files.as_bytes().to_vec());
     let message = Message::new(
         Title::FileListRequest,
