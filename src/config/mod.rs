@@ -2,7 +2,8 @@ use dirs::config_dir;
 use fs;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
-use std::io::{self, Read, Write};
+use std::io::{Read, Write};
+use std::path::PathBuf;
 use toml;
 
 #[derive(Deserialize, Serialize)]
@@ -19,9 +20,9 @@ pub struct User {
 }
 
 pub fn get_config() -> Result<Config, Box<dyn Error>> {
-    let path = get_config_path()?;
+    let path = get_config_path()?.join("config.toml");
 
-    let mut toml = fs::load_file(&path, "config.toml")?;
+    let mut toml = fs::load_file(&path)?;
     let mut buf: Vec<u8> = Vec::new();
     toml.read_to_end(&mut buf)?;
     let toml = String::from_utf8_lossy(&buf);
@@ -31,6 +32,7 @@ pub fn get_config() -> Result<Config, Box<dyn Error>> {
 
 pub fn crete_conf() -> Result<(), Box<dyn Error>> {
     let path = get_config_path()?;
+
     fs::create_dir(&path)?;
     let config: Config = Config {
         ip: "127.0.0.1:8080".to_string(),
@@ -42,23 +44,13 @@ pub fn crete_conf() -> Result<(), Box<dyn Error>> {
     };
 
     let toml = toml::to_string_pretty(&config)?;
-    let mut file = fs::create_file(&path, "config.toml")?;
+    let path = path.join("config.toml");
+    let mut file = fs::create_file(&path)?;
     file.write_all(toml.as_bytes())?;
     Ok(())
 }
 
-pub fn get_config_path() -> Result<String, Box<dyn Error>> {
-    let config_dir = config_dir();
-    let path = match config_dir {
-        Some(d) => d,
-        None => {
-            return Err(Box::new(io::Error::new(
-                io::ErrorKind::Other,
-                "InvalidType: file name incorrect type (isnt Text).",
-            )))
-        }
-    };
-    let mut path = path.to_string_lossy().into_owned();
-    path.push_str("/nimbus_server/");
-    Ok(path)
+pub fn get_config_path() -> Result<PathBuf, Box<dyn Error>> {
+    let config_dir = config_dir().unwrap().join("nimbus_server/");
+    Ok(config_dir)
 }

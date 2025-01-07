@@ -2,6 +2,7 @@ use std::{
     error::Error,
     io::{self, Read, Write},
     net::TcpStream,
+    path::PathBuf,
 };
 
 use dtp::{Content, ContentType, Message, SubTitile, Title};
@@ -37,15 +38,16 @@ fn handle_get_request(
             )))
         }
     };
+    let path = PathBuf::new().join(dir).join(file_name);
 
-    match fs::is_file_exist(dir, &file_name) {
+    match fs::is_file_exist(&path) {
         Ok(_) => (),
         Err(_) => {
             send_no_exist_error(stream, Title::GetRequest)?;
         }
     }
 
-    let file_size = Content::Number(fs::file_size(dir, &file_name)?);
+    let file_size = Content::Number(fs::file_size(&path)?);
     let answer: Message = Message::new(
         Title::GetRequest,
         SubTitile::Ok,
@@ -58,7 +60,7 @@ fn handle_get_request(
     rw::wait_ok(stream, Title::GetRequest)?;
 
     let mut buf: Vec<u8> = vec![];
-    let mut file = fs::load_file(dir, &file_name)?;
+    let mut file = fs::load_file(&path)?;
     file.read_to_end(&mut buf)?;
     let file_data = Content::Binary(buf);
 
@@ -95,6 +97,7 @@ fn handle_send_request(
             )))
         }
     };
+    let path = PathBuf::new().join(dir).join(file_name);
 
     rw::send_ok(stream, Title::SendRequest)?;
 
@@ -110,7 +113,7 @@ fn handle_send_request(
             }
         };
 
-    let mut file = fs::create_file(dir, &file_name)?;
+    let mut file = fs::create_file(&path)?;
     file.write_all(&file_data)?;
 
     send_ok(stream, Title::SendRequest)?;

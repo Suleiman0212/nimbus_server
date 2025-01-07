@@ -11,13 +11,16 @@ mod tcp_processor;
 fn main() -> Result<(), Box<dyn Error>> {
     // Check config file for existance
     // If it isnt, create it
-    let conf: Config = match fs::is_file_exist(&config::get_config_path()?, "config.toml") {
+    let conf: Config = match fs::is_file_exist(&config::get_config_path()?.join("config.toml")) {
         Ok(_) => config::get_config()?,
         Err(e) => {
             eprintln!("{e}");
             config::crete_conf()?;
-            println!("Config created in {}", &config::get_config_path()?);
-            println!("Chech and edit config data_path.");
+            println!(
+                "Config created in {}",
+                &config::get_config_path()?.to_str().unwrap()
+            );
+            println!("Check and edit config data_path.");
             config::get_config()?
         }
     };
