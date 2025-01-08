@@ -15,6 +15,7 @@ pub fn handle_connection(stream: &mut TcpStream, dir: &str) -> Result<(), Box<dy
         Title::GetRequest => handle_get_request(stream, msg, dir)?,
         Title::SendRequest => handle_send_request(stream, msg, dir)?,
         Title::FileListRequest => handle_fl_request(stream, msg, dir)?,
+        Title::RemoveRequest => handle_remove_request(stream, msg, dir)?,
     }
     Ok(())
 }
@@ -42,9 +43,11 @@ fn handle_get_request(
 
     match fs::is_file_exist(&path) {
         Ok(_) => (),
-        Err(_) => {
-            send_no_exist_error(stream, Title::GetRequest)?;
-        }
+        Err(_) => rw::send_err(
+            stream,
+            Title::GetRequest,
+            "GetRequest error: File didint exist!",
+        )?,
     }
 
     let file_size = Content::Number(fs::file_size(&path)?);
@@ -121,6 +124,10 @@ fn handle_send_request(
     Ok(())
 }
 
+// Handling "Files-List" request
+// Steps:
+// 1. Get files in server directory
+// 2. Send files list
 fn handle_fl_request(
     stream: &mut TcpStream,
     msg: Message,
@@ -128,7 +135,8 @@ fn handle_fl_request(
 ) -> Result<(), Box<dyn Error>> {
     unbox_message(msg, Title::FileListRequest, ContentType::NoContent)?;
 
-    let files = fs::files_list(dir)?;
+    let path = PathBuf::new().join(dir);
+    let files = fs::files_list(&path)?;
     let files = Content::Binary(files.as_bytes().to_vec());
     let message = Message::new(
         Title::FileListRequest,
@@ -141,15 +149,42 @@ fn handle_fl_request(
     Ok(())
 }
 
-// Sending error message when file isn't exists
-fn send_no_exist_error(stream: &mut TcpStream, title: Title) -> Result<(), Box<dyn Error>> {
-    let error_message: Message = Message::new(
-        title,
-        SubTitile::Err,
-        ContentType::ErrMessage,
-        vec![Content::Text("File didnt exist!".to_string())],
-    );
-    send_message(stream, error_message)?;
+// Handling "Delete" request
+// Steps:
+// 1. Get file name
+// 2. Delete file
+// 3. Send OK
+fn handle_remove_request(
+    stream: &mut TcpStream,
+    msg: Message,
+    dir: &str,
+) -> Result<(), Box<dyn Error>> {
+    let file_name =
+        match unbox_message(msg, Title::RemoveRequest, ContentType::FileName)?[0].clone() {
+            Content::Text(t) => t,
+            _ => {
+                return Err(Box::new(io::Error::new(
+                    io::ErrorKind::Other,
+                    "InvalidType: file name incorrect type (isnt Text).",
+                )))
+            }
+        };
+
+    let path = PathBuf::new().join(dir).join(file_name);
+    match fs::remove(&path) {
+        Ok(_) => (),
+        Err(err) => {
+            let err_str = err.to_string();
+            rw::send_err(stream, Title::RemoveRequest, &err_str)?;
+            return Err(Box::new(io::Error::new(
+                io::ErrorKind::Other,
+                format!("RemoveDir error: {err}"),
+            )));
+        }
+    }
+
+    send_ok(stream, Title::RemoveRequest)?;
+
     Ok(())
 }
 
